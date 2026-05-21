@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>mariloks</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #ffffff;
+            padding: 20px;
+            color: #000000;
+        }
+
+        h1 {
+            text-align: center;
+            color: #000000;
+            font-size: 22px;
+            margin-bottom: 20px;
+        }
+
+        .contenedor {
+            max-width: 850px;
+            margin: 0 auto;
+            padding: 10px;
+        }
+
+        label {
+            font-size: 14px;
+            margin-right: 5px;
+        }
+
+        input {
+            padding: 4px;
+            margin: 5px 15px 5px 0;
+            border: 1px solid #999999;
+            text-align: center;
+            width: 60px;
+            color: #000000;
+        }
+
+        button {
+            padding: 5px 10px;
+            border: 1px solid #b99099;
+            background: #fff0f2;
+            color: #000000;
+            font-weight: bold;
+            font-size: 13px;
+            cursor: pointer;
+        }
+
+        table {
+            width: 100%;
+            margin-top: 15px;
+            border-collapse: collapse;
+        }
+
+        th {
+            background: #fff0f2;
+            color: #000000;
+            padding: 6px;
+            border: 1px solid #999999;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        td {
+            padding: 6px;
+            border: 1px solid #999999;
+            text-align: center;
+            background: #ffffff;
+            color: #000000;
+            font-size: 14px;
+        }
+
+        .col-titulo {
+            background: #fff0f2;
+            color: #000000;
+            font-weight: bold;
+        }
+
+        .resultado {
+            margin-top: 25px;
+            padding-top: 0px; 
+        }
+
+        h2, h3 {
+            color: #000000;
+            margin-top: 10px;
+            font-size: 18px;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Algoritmo A*</h1>
+
+    <div class="contenedor">
+        <label>Número de empresas:</label>
+        <input type="number" id="numEmpresas" min="1" value="3">
+
+        <label>Número de llantas:</label>
+        <input type="number" id="numLlantas" min="1" value="5">
+
+        <button onclick="generarTabla()">Generar Tabla</button>
+
+        <div id="tablaContainer"></div>
+        <div class="resultado" id="resultado"></div>
+    </div>
+
+    <script>
+        let tipos = [];
+
+        function generarTipos(cantidad){
+            const letras = [
+                "T","H","V","W","X",
+                "Y","Z","A","B","C",
+                "D","E","F","G"
+            ];
+            tipos = [];
+            for(let i = 0; i < cantidad; i++){
+                tipos.push(letras[i % letras.length]);
+            }
+        }
+
+        function generarTabla(){
+            let numEmpresas = parseInt(document.getElementById("numEmpresas").value);
+            let numLlantas = parseInt(document.getElementById("numLlantas").value);
+
+            if (isNaN(numEmpresas) || isNaN(numLlantas)) return;
+
+            generarTipos(numLlantas);
+
+            let container = document.getElementById("tablaContainer");
+            let html = "";
+
+            html += `
+                <table>
+                    <tr>
+                        <th>EMPRESAS</th>
+            `;
+
+            for(let tipo of tipos){
+                html += `<th>${tipo}</th>`;
+            }
+
+            html += `</tr>`;
+
+            for(let i = 0; i < numEmpresas; i++){
+                html += `
+                    <tr>
+                        <td class="col-titulo">E${i+1}</td>
+                `;
+
+                for(let j = 0; j < tipos.length; j++){
+                    html += `
+                        <td>
+                            <input type="number" id="costo_${i}_${j}" style="width:50px; margin:0; padding:2px;">
+                        </td>
+                    `;
+                }
+                html += `</tr>`;
+            }
+
+            html += `
+                </table>
+                <br>
+                <button onclick="calcular()">Calcular Solución</button>
+            `;
+
+            container.innerHTML = html;
+            document.getElementById("resultado").innerHTML = ""; 
+        }
+
+        function heuristica(empresasRestantes, tiposRestantes, tablaCostos){
+            let h = 0;
+            for(let tipo of tiposRestantes){
+                let menor = Infinity;
+                for(let empresa of empresasRestantes){
+                    let costo = tablaCostos[empresa][tipo];
+                    if(!isNaN(costo) && costo < menor){
+                        menor = costo;
+                    }
+                }
+                if(menor !== Infinity){
+                    h += menor;
+                }
+            }
+            return h;
+        }
+
+        function buscarSolucion(empresas, tipos, tablaCostos){
+            let frontera = [];
+            frontera.push({
+                datos: [],
+                costo: 0
+            });
+
+            while(frontera.length > 0){
+                frontera.sort((a,b)=>{
+                    let fa = a.costo + heuristica(
+                        empresas.filter(e => !a.datos.map(x=>x[0]).includes(e)),
+                        tipos.slice(a.datos.length),
+                        tablaCostos
+                    );
+                    let fb = b.costo + heuristica(
+                        empresas.filter(e => !b.datos.map(x=>x[0]).includes(e)),
+                        tipos.slice(b.datos.length),
+                        tablaCostos
+                    );
+                    return fa - fb;
+                });
+
+                let nodo = frontera.shift();
+
+                if(nodo.datos.length === tipos.length){
+                    return nodo;
+                }
+
+                let tipoActual = tipos[nodo.datos.length];
+                let usadas = nodo.datos.map(x=>x[0]);
+                let restantes = empresas.filter(e => !usadas.includes(e));
+
+                if(restantes.length === 0 && empresas.length > 0) {
+                    restantes = empresas; 
+                }
+
+                for(let empresa of restantes){
+                    let nueva = [...nodo.datos];
+                    nueva.push([empresa, tipoActual]);
+
+                    let costoCelda = tablaCostos[empresa][tipoActual] || 0;
+
+                    frontera.push({
+                        datos: nueva,
+                        costo: nodo.costo + costoCelda
+                    });
+                }
+            }
+            return null;
+        }
+
+        function calcular(){
+            let numEmpresas = parseInt(document.getElementById("numEmpresas").value);
+            let empresas = [];
+            let tablaCostos = {};
+
+            for(let i = 0; i < numEmpresas; i++){
+                let empresa = "E" + (i+1);
+                empresas.push(empresa);
+                tablaCostos[empresa] = {};
+
+                for(let j = 0; j < tipos.length; j++){
+                    let valor = parseInt(document.getElementById(`costo_${i}_${j}`).value);
+                    let costo = isNaN(valor) ? 0 : valor;
+                    tablaCostos[empresa][tipos[j]] = costo;
+                }
+            }
+
+            let solucion = buscarSolucion(empresas, tipos, tablaCostos);
+
+            if(!solucion) {
+                document.getElementById("resultado").innerHTML = "<h3>No se encontró una solución.</h3>";
+                return;
+            }
+
+            let html = `
+                <h2>SOLUCIÓN ÓPTIMA</h2>
+                <table>
+                    <tr>
+                        <th>LLANTA</th>
+                        <th>EMPRESA</th>
+                        <th>COSTO</th>
+                    </tr>
+            `;
+
+            let total = 0;
+            for(let item of solucion.datos){
+                let empresa = item[0];
+                let tipo = item[1];
+                let costo = tablaCostos[empresa][tipo];
+                total += costo;
+
+                html += `
+                    <tr>
+                        <td class="col-titulo">${tipo}</td>
+                        <td>${empresa}</td>
+                        <td>${costo}</td>
+                    </tr>
+                `;
+            }
+
+            html += `
+                </table>
+                <h3>COSTO TOTAL: ${total}</h3>
+            `;
+
+            document.getElementById("resultado").innerHTML = html;
+        }
+    </script>
+</body>
+</html>
